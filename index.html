@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Gift for My Galaxy</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas { 
+            display: block; 
+            filter: blur(0.4px); 
+        } 
+        .footer {
+            position: absolute;
+            bottom: 30px;
+            left: 30px; 
+            text-align: left; 
+            color: rgba(0, 220, 255, 0.8);
+            font-family: 'Arial', sans-serif;
+            letter-spacing: 2px;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0, 220, 255, 0.5);
+       }
+        .source {
+           font-size: 0.8rem;
+           opacity: 0.6;
+          margin-top: 5px;
+    }      
+    </style>
+</head>
+<body>
+    <canvas id="morphCanvas"></canvas>
+
+    <div class="footer">
+        <div>Happy Birthday to Zia Einstein</div>
+        <div class="source">Credit: Phở in love</div>
+    </div>
+    <script>
+        const canvas = document.getElementById('morphCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        const NUM_POINTS = 20000; 
+        const points = [];
+        
+        // Trạng thái Animation 
+        const shapes = ['galaxy', 'heart', 'rose'];
+        let currentShapeIndex = 0; 
+        let lastToggleTime = 0;
+        const TOGGLE_INTERVAL = 6000; 
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2 - 10;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function getHeartPoint(t) {
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            return { x, y };
+        }
+
+        function getRosePoint(t) {
+            const k = 5 / 4; 
+            const r = 18 * Math.cos(k * t) + Math.sin(t * 2);
+            const x = r * Math.cos(t);
+            const y = r * Math.sin(t);
+            return { x, y };
+        }
+
+        function initTargetPoints() {
+            for (let i = 0; i < NUM_POINTS; i++) {
+
+                const tHeart = Math.random() * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+                const tRose = Math.random() * Math.PI * 8;
+                const rHeart = Math.pow(Math.random(), 0.6);
+                const rRose = Math.pow(Math.random(), 0.6);
+
+                const ptH = getHeartPoint(tHeart);
+                const ptR = getRosePoint(tRose);
+
+                const arms = 3; 
+                const armAngle = (Math.PI * 2 / arms) * Math.floor(Math.random() * arms);
+                const rG = Math.pow(Math.random(), 1.5) * 16; 
+                const spiral = rG * 0.2; 
+                const noiseAngle = (Math.random() - 0.5) * 1.5;
+                const noiseR = (Math.random() - 0.5) * 2;
+                
+                const finalAngle = armAngle + spiral + noiseAngle;
+                const finalRadius = rG + noiseR;
+
+                points.push({
+                    x: Math.random() * width,  
+                    y: Math.random() * height,
+                    heartX: ptH.x * rHeart,
+                    heartY: ptH.y * rHeart,
+                    roseX: ptR.x * rRose,
+                    roseY: ptR.y * rRose,
+                    galAngle: finalAngle,   
+                    galRadius: finalRadius, 
+                    size: Math.random() * 0.7 + 0.2,       
+                    baseOpacity: Math.random() * 0.6 + 0.4, 
+                    drift: Math.random() * Math.PI * 2,    
+                    speed: Math.random() * 0.03 + 0.015    
+                });
+            }
+        }
+
+        function animate(now) {
+
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.globalCompositeOperation = 'lighter';
+
+            if (now - lastToggleTime > TOGGLE_INTERVAL) {
+                currentShapeIndex = (currentShapeIndex + 1) % shapes.length;
+                lastToggleTime = now;
+            }
+            const currentShape = shapes[currentShapeIndex];
+            const globalScale = Math.min(width, height) / 50;
+            const pulse = 1 + Math.sin(now * 0.004) * 0.05;
+
+            for (let i = 0; i < points.length; i++) {
+                const p = points[i];
+
+                let targetX, targetY;
+
+                if (currentShape === 'galaxy') {
+                    const spin = now * 0.0004; 
+                    const currentAngle = p.galAngle - spin;
+                    
+                    targetX = p.galRadius * Math.cos(currentAngle) * 1.5;
+                    targetY = p.galRadius * Math.sin(currentAngle) * 0.8;
+                } else if (currentShape === 'heart') {
+                    targetX = p.heartX;
+                    targetY = p.heartY;
+                } else {
+                    targetX = p.roseX;
+                    targetY = p.roseY;
+                }
+
+                const destX = centerX + targetX * globalScale * pulse;
+                const destY = centerY + targetY * globalScale * pulse;
+
+                const driftX = Math.sin(now / 500 + p.drift) * 1.5;
+                const driftY = Math.cos(now / 500 + p.drift) * 1.5;
+
+                p.x += (destX - p.x) * p.speed;
+                p.y += (destY - p.y) * p.speed;
+
+                const renderX = p.x + driftX;
+                const renderY = p.y + driftY;
+
+                if (p.baseOpacity > 0.01) {
+                    ctx.fillStyle = `rgba(0, 220, 255, ${p.baseOpacity})`;
+                    ctx.fillRect(renderX, renderY, p.size, p.size);
+                }
+            }
+
+            drawHalo(globalScale * pulse * 20);
+
+            requestAnimationFrame(animate);
+        }
+
+        function drawHalo(radius) {
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+            gradient.addColorStop(0, 'rgba(0, 100, 255, 0.15)'); 
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        initTargetPoints();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>
